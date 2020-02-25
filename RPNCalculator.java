@@ -52,6 +52,7 @@ public class RPNCalculator {
 						}
 						else {
 							stack.push(Operator.sqrt(stack.pop(), 15));// 15 decimal places of precision
+							prevStack.push(deepCopy(stack));
 						}
 						break;
 					case "undo": undo(); break;
