@@ -64,7 +64,7 @@ public class RPNCalculator {
 				}
 				prev = pointer + 1;
 			}
-			pointer++;
+			pointer ++;
 		}
 	}
 	
