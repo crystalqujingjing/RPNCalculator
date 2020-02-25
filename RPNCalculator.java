@@ -1,22 +1,27 @@
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.regex.Pattern;
+
+@FunctionalInterface
+interface BinaryOperation {
+	BigDecimal operate(BigDecimal a, BigDecimal b);
+}
 
 public class RPNCalculator {
 	LinkedList<BigDecimal> stack;
 	LinkedList<LinkedList<BigDecimal>> prevStack;// keep track of each operation's result
 	Pattern pattern = Pattern.compile("^(-?\\d+)(\\.\\d+)?$"); // pattern for a real number
-	String output = "";
+	String input;
 	
 	public RPNCalculator(String s) {
 		stack = new LinkedList<>();
 		prevStack = new LinkedList<>();
-		String sWithPadding = s + " ";
-		calculate(sWithPadding);
+		input = s + " ";// Add white space padding to input string
 	}
 	
-	private void calculate(String s) {
+	private void calculate(String s) throws ValidationException {
 		int pointer = 0;
 		int prev = 0;
 		while (pointer < s.length()) {
@@ -29,62 +34,59 @@ public class RPNCalculator {
 				} else {
 					switch (str) {
 					case "+":
+						process(str, prev + 1, (a, b) -> Operator.add(a, b));
+						break;
 					case "-": 
+						process(str, prev + 1, (a, b) -> Operator.subtract(a, b));
+						break;
 					case "*":
-					case "/": 
-						BigDecimal[] twoNums = new BigDecimal[2];
-						for (int i = 0; i < 2; i++) {
-							if (stack.isEmpty()) {
-								int pos = prev + 1;
-								output = "operator " + str + " (position: " + pos +"): insufficient parameters";
-								return;
-							}
-							else {
-								twoNums[i] = stack.pop();
-							}
-						}
-						switch (str) {
-						case "+": 
-							stack.push(Operator.add(twoNums[0], twoNums[1]));
-							break;
-						case "-": 
-							stack.push(Operator.subtract(twoNums[1], twoNums[0]));
-							break;
-						case "*": 
-							stack.push(Operator.multiply(twoNums[0], twoNums[1]));
-							break;
-						case "/": 
-							stack.push(Operator.divide(twoNums[1], twoNums[0]));
-							break;
-						}
-						prevStack.push(deepCopy(stack));
+						process(str, prev + 1, (a, b) -> Operator.multiply(a, b));
+						break;
+					case "/":
+						process(str, prev + 1, (a, b) -> Operator.divide(a, b));
 						break;
 					case "sqrt": 
 						if (stack.isEmpty()) {
-							output = "operator" + str + "(position: " + prev +"): insufficient parameters";
-							return;
+							String errorMessage = "operator" + str + "(position: " + prev +"): insufficient parameters";
+							throw new ValidationException(errorMessage);
 						}
 						else {
-							 stack.push(Operator.sqrt(stack.pop(), 15));// 15 decimal places of precision
+							stack.push(Operator.sqrt(stack.pop(), 15));// 15 decimal places of precision
 						}
-						prevStack.push(deepCopy(stack));
 						break;
 					case "undo": undo(); break;
 					case "clear": clear(); break;
 					default:
-						output = "operator " + str + " is not a valid operator";
+						String errorMessage = String.format("operator %s is not a valid operator", str);
+						throw new ValidationException(errorMessage);
 					}
 				}
 				prev = pointer + 1;
 			}
 			pointer++;
-		}		
+		}
+	}
+	
+	private void process(String str, int pos, BinaryOperation op) throws ValidationException{
+		BigDecimal[] twoNums = new BigDecimal[2];
+		for (int i = 0; i < 2; i++) {
+			if (stack.isEmpty()) {
+				String errorMessage = String.format("operator %s (position: %s): insufficient parameters", str, pos);
+				throw new ValidationException(errorMessage);
+			}
+			else {
+				twoNums[i] = stack.pop();
+			}
+		}
+		stack.push(op.operate(twoNums[1], twoNums[0]));
+		prevStack.push(deepCopy(stack));
 	}
 	
 	private LinkedList<BigDecimal> deepCopy(LinkedList<BigDecimal> stack) {
 		LinkedList<BigDecimal> copy = new LinkedList<>();
-		for (int i = stack.size() - 1; i >= 0; i--) {
-			copy.push(stack.get(i));
+		ListIterator<BigDecimal> iter = stack.listIterator(0);
+		while (iter.hasNext()) {
+			copy.push(iter.next());
 		}
 		return copy;
 	}
@@ -102,25 +104,18 @@ public class RPNCalculator {
 	}
 	
 	public String display() {
-		if (output.length() > 0) return output;
+		try {
+			calculate(input);
+		} catch (ValidationException e) {
+			return e.getMessage();
+		}
+		String res = new String();
 		for (int i = stack.size() - 1; i >= 0; i--) {
-			String roundStr = stack.get(i).setScale(10, RoundingMode.HALF_UP).toString();
-			// Remove trailing zeros
-			String res = roundStr;
-			for (int j = roundStr.length() - 1; j >= 0; j--) {
-				if (roundStr.charAt(j) != '0') {
-					if (roundStr.charAt(j) == '.') {
-						res = roundStr.substring(0, j);
-					}
-					break;
-				}
-				res = roundStr.substring(0, j);
-			}
-			output += res + " ";
+			res += stack.get(i).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " ";
 		}
 		// Remove trailing empty space
-		if (output.length() == 0) return "";
-		return output.substring(0, output.length() - 1);
+		if (res.length() == 0) return res;
+		return res.substring(0, res.length() - 1);
 	}
 	
 }
