@@ -2,14 +2,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.regex.Pattern;
-
-@FunctionalInterface
-interface BinaryOperation {
-	BigDecimal operate(BigDecimal a, BigDecimal b);
-}
 
 public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
 	LinkedList<BigDecimal> stack;
