@@ -82,7 +82,7 @@ public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
 	public String display(LinkedList<BigDecimal> stack) {
 		String res = new String();
 		for (int i = stack.size() - 1; i >= 0; i--) {
-			res += stack.get(i).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " ";
+			res = String.join(" ", res, stack.get(i).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString());
 		}
 		// Remove trailing empty space
 		return res.trim();
