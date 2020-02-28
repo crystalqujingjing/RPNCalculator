@@ -12,16 +12,16 @@ interface BinaryOperation {
 }
 
 public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
+	LinkedList<BigDecimal> stack;
 	LinkedList<LinkedList<BigDecimal>> prevStack;// keep track of each operation's result
 	Map<String, Operator<BigDecimal>> opMap;// map string to operator
 	Pattern pattern = Pattern.compile("^(-?\\d+)(\\.\\d+)?$"); // pattern for a real number
-	String input;
 	
-	public RPNDecimalCalculator(String s) {
+	public RPNDecimalCalculator() {
+		stack = new LinkedList<>();
 		prevStack = new LinkedList<>();
 		opMap = new HashMap<>();
 		loadOperators();
-		input = s + " ";// Add white space padding to input string
 	}
 	
 	private void loadOperators() {
@@ -33,10 +33,10 @@ public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
 	}
 	
 	@Override
-	public LinkedList<BigDecimal> calculate(String s) throws ValidationException {
+	public LinkedList<BigDecimal> calculate(String input) throws ValidationException {
+		String s = input + " ";// Add a whitespace to the string for string manipulation
 		int pointer = 0;
 		int prev = 0;
-		LinkedList<BigDecimal> stack = new LinkedList<>();
 		while (pointer < s.length()) {
 			if (s.charAt(pointer) == ' ') {
 				String str = s.substring(prev, pointer);
@@ -46,16 +46,12 @@ public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
 					prevStack.push(deepCopy(stack));
 				} else {
 					if (opMap.containsKey(str)) {
-						try {
-							opMap.get(str).process(stack, str, prev + 1);
-						} catch (ValidationException e) {
-							throw e;
-						}
+						opMap.get(str).process(stack, str, prev + 1);
 						prevStack.push(deepCopy(stack));
 					} else {
 						switch (str) {
-						case "undo": stack = undo(stack); break;
-						case "clear": stack = clear(stack); break;
+						case "undo": undo(); break;
+						case "clear": clear(); break;
 						default:
 							String errorMessage = String.format("operator %s is not a valid operator", str);
 							throw new ValidationException(errorMessage);
@@ -71,39 +67,31 @@ public class RPNDecimalCalculator implements RPNCalculator<BigDecimal>{
 	
 	private LinkedList<BigDecimal> deepCopy(LinkedList<BigDecimal> stack) {
 		LinkedList<BigDecimal> copy = new LinkedList<>();
-		ListIterator<BigDecimal> iter = stack.listIterator(0);
-		while (iter.hasNext()) {
-			copy.push(iter.next());
+		for (BigDecimal b : stack) {
+			copy.add(b);
 		}
 		return copy;
 	}
 	
-	private LinkedList<BigDecimal> undo(LinkedList<BigDecimal> stack) {
-		if (prevStack.isEmpty()) return new LinkedList<BigDecimal>();
+	private void undo() {
+		if (prevStack.isEmpty()) return;
 		prevStack.pop();
-		if (prevStack.isEmpty()) return new LinkedList<BigDecimal>();
-		else return deepCopy(prevStack.peek());
+		if (prevStack.isEmpty()) stack = new LinkedList<BigDecimal>();
+		else stack = prevStack.peek();
 	}
 	
-	private LinkedList<BigDecimal> clear(LinkedList<BigDecimal> stack) {
+	private void clear() {
 		prevStack.push(new LinkedList<>());
-		return stack = new LinkedList<>();
+		stack = new LinkedList<>();
 	}
 	
-	public String display() {
-		LinkedList<BigDecimal> stack;
-		try {
-			stack = calculate(input);
-		} catch (ValidationException e) {
-			return e.getMessage();
-		}
+	public String display(LinkedList<BigDecimal> stack) {
 		String res = new String();
 		for (int i = stack.size() - 1; i >= 0; i--) {
 			res += stack.get(i).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " ";
 		}
 		// Remove trailing empty space
-		if (res.length() == 0) return res;
-		return res.substring(0, res.length() - 1);
+		return res.trim();
 	}
 	
 }
